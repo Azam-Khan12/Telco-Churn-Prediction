@@ -3,38 +3,114 @@ import pandas as pd
 import pickle
 import numpy as np
 
-# Model selection dropdown
-st.sidebar.title("Model Selection")
-model_choice = st.sidebar.selectbox("Choose Model", ["Logistic Regression (Recommended)", "Naive Bayes (High Recall)"])
+# Page config - Imperial & Energetic Theme
+st.set_page_config(
+    page_title="Telco Churn Predictor",
+    page_icon="📡",
+    layout="centered",
+    initial_sidebar_state="expanded"
+)
 
-# Load selected model
+# Custom CSS for Imperial, Classy & Energetic Look
+st.markdown("""
+<style>
+    .main {
+        background-color: #0e1117;
+        padding: 2rem;
+    }
+    .stApp {
+        background: linear-gradient(to bottom, #1a1a2e, #16213e);
+        color: #e94560;
+    }
+    .sidebar .sidebar-content {
+        background: #0f3460;
+    }
+    h1 {
+        color: #e94560;
+        font-family: 'Arial Black', sans-serif;
+        text-align: center;
+        text-shadow: 0 0 10px #e94560;
+    }
+    .stSelectbox > div > div > div {
+        color: white;
+        background-color: #16213e;
+    }
+    .stButton > button {
+        background-color: #e94560;
+        color: white;
+        border-radius: 10px;
+        border: none;
+        padding: 0.5rem 1rem;
+        font-weight: bold;
+    }
+    .stButton > button:hover {
+        background-color: #ff6b6b;
+        box-shadow: 0 0 15px #ff6b6b;
+    }
+    .stSuccess {
+        background-color: #28a745 !important;
+        color: white !important;
+        font-size: 1.2rem !important;
+        padding: 1rem;
+        border-radius: 10px;
+    }
+    .stError {
+        background-color: #dc3545 !important;
+        color: white !important;
+        font-size: 1.2rem !important;
+        padding: 1rem;
+        border-radius: 10px;
+    }
+    .stWarning {
+        background-color: #ffc107;
+        color: black;
+        font-weight: bold;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Sidebar Model Selection
+st.sidebar.title("🔥 Model Selection")
+model_choice = st.sidebar.selectbox(
+    "Choose Prediction Model",
+    ["Logistic Regression (Recommended)", "Naive Bayes (High Recall)"]
+)
+
+# Correct paths for Streamlit Cloud
 if model_choice == "Logistic Regression (Recommended)":
-    model_file = 'models/churn_model_logistic.pkl'
-    scaler_file = 'models/scaler_logistic.pkl'
-    info_file = 'models/preprocess_info_logistic.pkl'
+    model_file = "models/churn_model_logistic.pkl"
+    scaler_file = "models/scaler_logistic.pkl"
+    info_file = "models/preprocess_info_logistic.pkl"
     use_scaler = True
 else:
-    model_file = 'models/churn_model_naive.pkl'
-    info_file = 'models/preprocess_info_naive.pkl'
+    model_file = "models/churn_model_naive.pkl"
+    info_file = "models/preprocess_info_naive.pkl"
     use_scaler = False
 
-with open(model_file, 'rb') as f:
-    model = pickle.load(f)
-
-with open(info_file, 'rb') as f:
-    info = pickle.load(f)
-
-if use_scaler:
-    with open('models/scaler_logistic.pkl', 'rb') as f:
-        scaler = pickle.load(f)
+# Load model and info
+try:
+    with open(model_file, 'rb') as f:
+        model = pickle.load(f)
+    with open(info_file, 'rb') as f:
+        info = pickle.load(f)
+    if use_scaler:
+        with open(scaler_file, 'rb') as f:
+            scaler = pickle.load(f)
+except Exception as e:
+    st.error(f"Model loading error: {e}")
+    st.stop()
 
 categorical_cols = info['categorical_cols']
 feature_names = info['feature_names']
 
-st.title("🏢 Telco Customer Churn Prediction")
-st.markdown(f"**Current Model: {model_choice}**")
+# Title
+st.title("📡 Telco Customer Churn Predictor")
+st.markdown(f"**Active Model:** {model_choice}")
+st.markdown("---")
 
-with st.form("customer_form"):
+# Form
+with st.form("customer_form", clear_on_submit=False):
+    st.markdown("### Customer Details")
     col1, col2 = st.columns(2)
     
     with col1:
@@ -59,12 +135,13 @@ with st.form("customer_form"):
         payment = st.selectbox("Payment Method", ["Electronic check", "Mailed check", "Bank transfer (automatic)", "Credit card (automatic)"])
         monthly = st.number_input("Monthly Charges ($)", min_value=18.0, max_value=120.0, value=70.0, step=0.05)
 
-    submitted = st.form_submit_button("Predict Churn Risk")
+    submitted = st.form_submit_button("🔮 Predict Churn Risk", use_container_width=True)
 
 if submitted:
     total_charges = tenure * monthly
-    st.info(f"🔢 Auto-Calculated Total Charges: ${total_charges:.2f}")
+    st.info(f"**Auto-Calculated Total Charges**: ${total_charges:.2f}")
 
+    # Prepare input
     data = {
         'gender': gender,
         'SeniorCitizen': 1 if senior == "Yes" else 0,
@@ -99,17 +176,23 @@ if submitted:
     if use_scaler:
         input_final = scaler.transform(input_encoded)
     else:
-        input_final = input_encoded
+        input_final = input_encoded.values if hasattr(input_encoded, 'values') else input_encoded
     
+    # Prediction
     probability = model.predict_proba(input_final)[0][1]
     prediction = model.predict(input_final)[0]
     
     st.markdown("---")
+    
     if prediction == 1:
-        st.error("🚨 High Risk of Churn")
+        st.error("🚨 **HIGH RISK OF CHURN**")
         st.warning(f"Churn Probability: {probability:.2%}")
-        st.info("💡 Suggestion: Call the customer, offer discount or long-term contract!")
+        st.info("💡 **Immediate Action Required**: Offer discount, long-term contract, or personal call!")
     else:
-        st.success("✅ Low Risk – Likely to Stay")
+        st.success("✅ **LOW RISK – Customer Likely to Stay**")
         st.success(f"Churn Probability: {probability:.2%}")
-        st.info("👍 Keep up the good service!")
+        st.info("👍 Excellent! Continue providing great service.")
+
+# Footer
+st.markdown("---")
+st.markdown("<p style='text-align: center; color: #888;'>Made with ❤️ by Azam Khan | Powered by Streamlit</p>", unsafe_allow_html=True)
